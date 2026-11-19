@@ -1,0 +1,1031 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Registro Chitarre & Gear — QuintaDB</title>
+  <style>
+    :root {
+      --bg: #0f1115;
+      --surface: #171a21;
+      --surface-2: #1f2430;
+      --border: #2c3342;
+      --text: #eef1f6;
+      --muted: #9aa4b8;
+      --accent: #4f8cff;
+      --accent-hover: #3a76eb;
+      --ok: #27ae60;
+      --warn: #e67e22;
+      --err: #e74c3c;
+      --radius: 12px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.45;
+      padding-bottom: 48px;
+    }
+
+    .container {
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: 20px 16px;
+    }
+
+    header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    header h1 {
+      font-size: 1.45rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+    }
+
+    header p {
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .btn-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    button, .btn {
+      background: var(--surface-2);
+      color: var(--text);
+      border: 1px solid var(--border);
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+
+    button:hover {
+      background: #282f3e;
+      border-color: #3d465a;
+    }
+
+    button.primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    button.primary:hover {
+      background: var(--accent-hover);
+    }
+
+    button.ghost {
+      background: transparent;
+    }
+
+    /* KPI / Riepilogo */
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+    }
+
+    .stat-label {
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+
+    .stat-value {
+      font-size: 1.3rem;
+      font-weight: 700;
+    }
+
+    .stat-value.pos { color: #4cd98b; }
+    .stat-value.neg { color: #ff7675; }
+
+    /* Pannello Configurazione */
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      margin-bottom: 18px;
+      display: none;
+    }
+
+    .panel.open { display: block; }
+
+    .panel h2 {
+      font-size: 1rem;
+      margin-bottom: 12px;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 12px;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .field label {
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+
+    input, select, textarea {
+      background: var(--bg);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 0.9rem;
+      font-family: inherit;
+    }
+
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    /* Filtri */
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 18px;
+      background: var(--surface);
+      padding: 12px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+    }
+
+    .toolbar input[type="search"] {
+      flex: 1 1 220px;
+    }
+
+    .status-msg {
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-bottom: 14px;
+      min-height: 20px;
+    }
+
+    .status-msg.err { color: #ff7675; }
+    .status-msg.ok { color: #4cd98b; }
+
+    /* Griglia Card */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(275px, 1fr));
+      gap: 16px;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      transition: transform 0.15s, border-color 0.15s;
+    }
+
+    .card:hover {
+      transform: translateY(-2px);
+      border-color: #3f4a61;
+    }
+
+    .thumb-wrap {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 4 / 3;
+      background: #101318;
+      cursor: pointer;
+      overflow: hidden;
+    }
+
+    .thumb-wrap img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .no-img {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+
+    .card-body {
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      flex: 1;
+    }
+
+    .card-title {
+      font-size: 1rem;
+      font-weight: 700;
+      text-transform: capitalize;
+    }
+
+    .card-date {
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+
+    .prices {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 6px 10px;
+      font-size: 0.84rem;
+      background: var(--surface-2);
+      padding: 10px;
+      border-radius: 8px;
+    }
+
+    .prices span.lbl { color: var(--muted); }
+    .prices strong { text-align: right; }
+
+    .gain-pos { color: #4cd98b; font-weight: 700; }
+    .gain-neg { color: #ff7675; font-weight: 700; }
+
+    .card-actions {
+      margin-top: auto;
+      display: flex;
+      gap: 8px;
+    }
+
+    .card-actions button {
+      flex: 1;
+      padding: 6px 10px;
+      font-size: 0.82rem;
+    }
+
+    /* Modal */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.75);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      z-index: 100;
+    }
+
+    .modal-backdrop.open { display: flex; }
+
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      max-width: 640px;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+      padding: 20px;
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+
+    .modal img.full-photo {
+      width: 100%;
+      max-height: 360px;
+      object-fit: contain;
+      background: #0d0f13;
+      border-radius: 8px;
+      margin-bottom: 14px;
+    }
+
+    .modal-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 16px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div>
+        <h1>Registro Chitarre & Gear</h1>
+        <p>Storico acquisti, spese, vendite e guadagni collegato a QuintaDB</p>
+      </div>
+      <div class="btn-group">
+        <button class="primary" id="btnOpenNew">+ Nuova scheda</button>
+        <button id="btnSync">Aggiorna da QuintaDB</button>
+        <button id="btnDemo">Dati di esempio</button>
+        <button class="ghost" id="btnToggleConfig">Configurazione</button>
+      </div>
+    </header>
+
+    <!-- Riepilogo Numerico -->
+    <section class="stats" id="statsSection">
+      <div class="stat-card">
+        <div class="stat-label">Pezzi censiti</div>
+        <div class="stat-value" id="statCount">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Totale pagato</div>
+        <div class="stat-value" id="statPaid">0,00 €</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Spese sostenute</div>
+        <div class="stat-value" id="statExpenses">0,00 €</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Totale venduto</div>
+        <div class="stat-value" id="statSold">0,00 €</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Guadagno netto</div>
+        <div class="stat-value pos" id="statGain">0,00 €</div>
+      </div>
+    </section>
+
+    <!-- Configurazione QuintaDB -->
+    <section class="panel" id="configPanel">
+      <h2>Impostazioni QuintaDB (salvate solo in questo browser)</h2>
+      <div class="form-grid">
+        <div class="field">
+          <label for="cfgApiKey">REST API Key</label>
+          <input type="password" id="cfgApiKey" placeholder="es. c7CmokrmjbW5SMW7dcTCkV" />
+        </div>
+        <div class="field">
+          <label for="cfgFormId">Form / Entity ID (o URL API completo)</label>
+          <input type="text" id="cfgFormId" placeholder="ID form o https://quintadb.com/api/v1/forms/ID/records.json" />
+        </div>
+        <div class="field">
+          <label for="cfgMapModel">Nome campo Modello</label>
+          <input type="text" id="cfgMapModel" value="Modello" />
+        </div>
+        <div class="field">
+          <label for="cfgMapPhoto">Nome campo Foto</label>
+          <input type="text" id="cfgMapPhoto" value="Foto" />
+        </div>
+        <div class="field">
+          <label for="cfgMapDate">Nome campo Data</label>
+          <input type="text" id="cfgMapDate" value="Data" />
+        </div>
+        <div class="field">
+          <label for="cfgMapPaid">Nome campo Pagato</label>
+          <input type="text" id="cfgMapPaid" value="Pagato" />
+        </div>
+        <div class="field">
+          <label for="cfgMapExp">Nome campo Spese sostenute</label>
+          <input type="text" id="cfgMapExp" value="Spese sostenute" />
+        </div>
+        <div class="field">
+          <label for="cfgMapSold">Nome campo Venduto</label>
+          <input type="text" id="cfgMapSold" value="Venduto" />
+        </div>
+        <div class="field">
+          <label for="cfgMapGain">Nome campo Guadagno</label>
+          <input type="text" id="cfgMapGain" value="Guadagno" />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="primary" id="btnSaveConfig">Salva configurazione</button>
+      </div>
+    </section>
+
+    <!-- Barra Filtri -->
+    <div class="toolbar">
+      <input type="search" id="searchInput" placeholder="Cerca per modello (es. Epiphone, Ibanez, Yamaha, SG)..." />
+      <select id="categoryFilter">
+        <option value="all">Tutte le categorie</option>
+        <option value="guitars">Solo chitarre</option>
+        <option value="other">Ampli / Altro</option>
+      </select>
+      <select id="yearFilter">
+        <option value="all">Tutti gli anni</option>
+      </select>
+      <select id="sortSelect">
+        <option value="date_desc">Data (più recenti)</option>
+        <option value="date_asc">Data (più vecchi)</option>
+        <option value="gain_desc">Guadagno (più alto)</option>
+        <option value="gain_asc">Guadagno (più basso)</option>
+      </select>
+    </div>
+
+    <div class="status-msg" id="statusMsg"></div>
+
+    <!-- Lista Schede -->
+    <main class="grid" id="cardsGrid"></main>
+  </div>
+
+  <!-- Modal Dettaglio / Inserimento / Modifica -->
+  <div class="modal-backdrop" id="modalBackdrop">
+    <div class="modal" id="modalBox">
+      <div class="modal-header">
+        <h2 id="modalTitle">Dettaglio</h2>
+        <button id="btnCloseModal">✕</button>
+      </div>
+      <div id="modalContent"></div>
+    </div>
+  </div>
+
+  <script>
+    const STORAGE_KEY = "quintadb_chitarre_cfg_v1";
+
+    const DEMO_DATA = [
+      {
+        id: "demo-1",
+        modello: "Eko sutdio classica",
+        foto: "https://quintadb.com/images/data4/cfWRGLWRjcMioaCSknbCov/cYW7xcLSjhW7r9WQ3dGCkq/PXL_20261007_151831922.jpg",
+        data: "04-10-2026",
+        pagato: 0,
+        spese: 5,
+        venduto: 25,
+        guadagno: 20
+      },
+      {
+        id: "demo-2",
+        modello: "Squier stratocaster california blue",
+        foto: "https://quintadb.com/images/data4/cfWRGLWRjcMioaCSknbCov/bVAJBcOsviWPPTwauqCCoZ/s3.png",
+        data: "12-12-2025",
+        pagato: 50,
+        spese: 15,
+        venduto: 80,
+        guadagno: 15
+      },
+      {
+        id: "demo-3",
+        modello: "Ibanex RG170DX",
+        foto: "https://quintadb.com/images/data4/cfWRGLWRjcMioaCSknbCov/ddG1pdNmjanyoEWP0AW79c/ib1.png",
+        data: "22-12-2024",
+        pagato: 70,
+        spese: 0,
+        venduto: 150,
+        guadagno: 80
+      },
+      {
+        id: "demo-4",
+        modello: "Amplificatore Dean Markley",
+        foto: "https://quintadb.com/images/data4/cfWRGLWRjcMioaCSknbCov/b2j8oAFNDcVykkWOZdLSod/k15.jpg",
+        data: "25-02-2024",
+        pagato: 0,
+        spese: 0,
+        venduto: 40,
+        guadagno: 40
+      },
+      {
+        id: "demo-5",
+        modello: "Epiphone Les Paul standard",
+        foto: "https://quintadb.com/images/data4/cfWRGLWRjcMioaCSknbCov/crWOxdRCjawj4RbCk1mCo7/g1.png",
+        data: "21-02-2023",
+        pagato: 130,
+        spese: 0,
+        venduto: 350,
+        guadagno: 220
+      }
+    ];
+
+    let allItems = [];
+    let config = loadConfig();
+
+    function loadConfig() {
+      const defaults = {
+        apiKey: "",
+        formId: "",
+        map: {
+          modello: "Modello",
+          foto: "Foto",
+          data: "Data",
+          pagato: "Pagato",
+          spese: "Spese sostenute",
+          venduto: "Venduto",
+          guadagno: "Guadagno"
+        }
+      };
+      try {
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+        return saved ? { ...defaults, ...saved, map: { ...defaults.map, ...(saved.map || {}) } } : defaults;
+      } catch {
+        return defaults;
+      }
+    }
+
+    function saveConfigToUI() {
+      config = {
+        apiKey: document.getElementById("cfgApiKey").value.trim(),
+        formId: document.getElementById("cfgFormId").value.trim(),
+        map: {
+          modello: document.getElementById("cfgMapModel").value.trim() || "Modello",
+          foto: document.getElementById("cfgMapPhoto").value.trim() || "Foto",
+          data: document.getElementById("cfgMapDate").value.trim() || "Data",
+          pagato: document.getElementById("cfgMapPaid").value.trim() || "Pagato",
+          spese: document.getElementById("cfgMapExp").value.trim() || "Spese sostenute",
+          venduto: document.getElementById("cfgMapSold").value.trim() || "Venduto",
+          guadagno: document.getElementById("cfgMapGain").value.trim() || "Guadagno"
+        }
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+      setStatus("Configurazione salvata in locale.", "ok");
+    }
+
+    function populateConfigUI() {
+      document.getElementById("cfgApiKey").value = config.apiKey || "";
+      document.getElementById("cfgFormId").value = config.formId || "";
+      document.getElementById("cfgMapModel").value = config.map.modello;
+      document.getElementById("cfgMapPhoto").value = config.map.foto;
+      document.getElementById("cfgMapDate").value = config.map.data;
+      document.getElementById("cfgMapPaid").value = config.map.pagato;
+      document.getElementById("cfgMapExp").value = config.map.spese;
+      document.getElementById("cfgMapSold").value = config.map.venduto;
+      document.getElementById("cfgMapGain").value = config.map.guadagno;
+    }
+
+    function setStatus(msg, type = "") {
+      const el = document.getElementById("statusMsg");
+      el.textContent = msg;
+      el.className = "status-msg " + type;
+    }
+
+    function parseNum(v) {
+      if (v === null || v === undefined || v === "") return 0;
+      const cleaned = String(v).replace(",", ".").replace(/[^0-9.-]/g, "");
+      const n = parseFloat(cleaned);
+      return Number.isFinite(n) ? n : 0;
+    }
+
+    function formatEur(n) {
+      return n.toLocaleString("it-IT", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
+    }
+
+    function parseDateToObj(dateStr) {
+      if (!dateStr) return null;
+      const parts = String(dateStr).trim().split(/[-/]/);
+      if (parts.length === 3) {
+        // GG-MM-AAAA oppure AAAA-MM-GG
+        if (parts[0].length === 4) {
+          return new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+        }
+        return new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0]));
+      }
+      const d = new Date(dateStr);
+      return Number.isNaN(d.getTime()) ? null : d;
+    }
+
+    function extractPhotoUrl(rawPhoto) {
+      if (!rawPhoto) return "";
+      if (typeof rawPhoto === "string") return rawPhoto.trim();
+      if (Array.isArray(rawPhoto) && rawPhoto.length > 0) {
+        return typeof rawPhoto[0] === "string" ? rawPhoto[0] : (rawPhoto[0].url || rawPhoto[0].src || "");
+      }
+      if (typeof rawPhoto === "object") {
+        return rawPhoto.url || rawPhoto.src || "";
+      }
+      return "";
+    }
+
+    function isNonGuitar(modello) {
+      return /\b(ampli|amplificatore|behringer|mixer|pedal)\b/i.test(modello || "");
+    }
+
+    function normalizeRecord(raw, idx) {
+      const src = raw.values || raw.record || raw;
+      const m = config.map;
+      const modello = String(src[m.modello] ?? src.Modello ?? src.modello ?? "").trim();
+      if (!modello || modello.toLowerCase() === "totale sulla pagina") return null;
+
+      const pagato = parseNum(src[m.pagato] ?? src.Pagato);
+      const spese = parseNum(src[m.spese] ?? src["Spese sostenute"]);
+      const venduto = parseNum(src[m.venduto] ?? src.Venduto);
+      const rawGain = src[m.guadagno] ?? src.Guadagno;
+      const guadagno = (rawGain !== undefined && rawGain !== null && rawGain !== "")
+        ? parseNum(rawGain)
+        : (venduto - pagato - spese);
+
+      return {
+        id: String(raw.id || raw._id || src.id || `rec-${idx}`),
+        modello,
+        foto: extractPhotoUrl(src[m.foto] ?? src.Foto),
+        data: String(src[m.data] ?? src.Data ?? "").trim(),
+        pagato,
+        spese,
+        venduto,
+        guadagno
+      };
+    }
+
+    function buildEndpoint() {
+      const rawId = config.formId.trim();
+      if (!rawId) return null;
+      const baseUrl = rawId.startsWith("http")
+        ? rawId
+        : `https://quintadb.com/api/v1/forms/${encodeURIComponent(rawId)}/records.json`;
+      const sep = baseUrl.includes("?") ? "&" : "?";
+      return `${baseUrl}${sep}rest_api_key=${encodeURIComponent(config.apiKey.trim())}`;
+    }
+
+    async function fetchFromQuintaDB() {
+      const endpoint = buildEndpoint();
+      if (!endpoint || !config.apiKey.trim()) {
+        setStatus("Inserisci REST API Key e Form ID in Configurazione oppure clicca su 'Dati di esempio'.", "err");
+        return;
+      }
+      setStatus("Caricamento dati da QuintaDB in corso...");
+      try {
+        const res = await fetch(endpoint);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = await res.json();
+        const records = Array.isArray(json.records) ? json.records : (Array.isArray(json) ? json : []);
+        allItems = records.map(normalizeRecord).filter(Boolean);
+        updateYearFilter();
+        renderAll();
+        setStatus(`Sincronizzati ${allItems.length} record da QuintaDB.`, "ok");
+      } catch (err) {
+        setStatus(`Errore durante il caricamento da QuintaDB: ${err.message}`, "err");
+      }
+    }
+
+    async function saveRecordToQuintaDB(item, isEdit) {
+      const endpoint = buildEndpoint();
+      if (!endpoint || !config.apiKey.trim()) {
+        // Salvataggio locale se non configurato
+        if (isEdit) {
+          allItems = allItems.map(x => x.id === item.id ? item : x);
+        } else {
+          allItems.unshift({ ...item, id: "local-" + Date.now() });
+        }
+        updateYearFilter();
+        renderAll();
+        setStatus("Salvato in locale (configura QuintaDB per inviare al cloud).", "ok");
+        return;
+      }
+
+      const m = config.map;
+      const payload = {
+        [m.modello]: item.modello,
+        [m.foto]: item.foto,
+        [m.data]: item.data,
+        [m.pagato]: item.pagato,
+        [m.spese]: item.spese,
+        [m.venduto]: item.venduto,
+        [m.guadagno]: item.guadagno
+      };
+
+      const url = isEdit && !item.id.startsWith("demo-") && !item.id.startsWith("local-")
+        ? `https://quintadb.com/api/v1/forms/${encodeURIComponent(config.formId.trim())}/records/${encodeURIComponent(item.id)}.json?rest_api_key=${encodeURIComponent(config.apiKey.trim())}`
+        : endpoint;
+
+      const method = (isEdit && !item.id.startsWith("demo-") && !item.id.startsWith("local-")) ? "PUT" : "POST";
+
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ record: payload })
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      await fetchFromQuintaDB();
+    }
+
+    function getFilteredItems() {
+      const q = document.getElementById("searchInput").value.trim().toLowerCase();
+      const cat = document.getElementById("categoryFilter").value;
+      const year = document.getElementById("yearFilter").value;
+      const sort = document.getElementById("sortSelect").value;
+
+      let list = allItems.filter(item => {
+        if (q && !item.modello.toLowerCase().includes(q)) return false;
+        if (cat === "guitars" && isNonGuitar(item.modello)) return false;
+        if (cat === "other" && !isNonGuitar(item.modello)) return false;
+        if (year !== "all") {
+          const d = parseDateToObj(item.data);
+          if (!d || String(d.getFullYear()) !== year) return false;
+        }
+        return true;
+      });
+
+      list.sort((a, b) => {
+        if (sort === "gain_desc") return b.guadagno - a.guadagno;
+        if (sort === "gain_asc") return a.guadagno - b.guadagno;
+        const da = parseDateToObj(a.data)?.getTime() || 0;
+        const db = parseDateToObj(b.data)?.getTime() || 0;
+        return sort === "date_asc" ? da - db : db - da;
+      });
+
+      return list;
+    }
+
+    function updateYearFilter() {
+      const sel = document.getElementById("yearFilter");
+      const current = sel.value;
+      const years = new Set();
+      allItems.forEach(item => {
+        const d = parseDateToObj(item.data);
+        if (d) years.add(String(d.getFullYear()));
+      });
+      const sortedYears = Array.from(years).sort((a, b) => b - a);
+      sel.innerHTML = `<option value="all">Tutti gli anni</option>` +
+        sortedYears.map(y => `<option value="${y}">${y}</option>`).join("");
+      if (years.has(current)) sel.value = current;
+    }
+
+    function renderStats(items) {
+      const count = items.length;
+      const paid = items.reduce((s, x) => s + x.pagato, 0);
+      const exp = items.reduce((s, x) => s + x.spese, 0);
+      const sold = items.reduce((s, x) => s + x.venduto, 0);
+      const gain = items.reduce((s, x) => s + x.guadagno, 0);
+
+      document.getElementById("statCount").textContent = count;
+      document.getElementById("statPaid").textContent = formatEur(paid);
+      document.getElementById("statExpenses").textContent = formatEur(exp);
+      document.getElementById("statSold").textContent = formatEur(sold);
+      const gainEl = document.getElementById("statGain");
+      gainEl.textContent = formatEur(gain);
+      gainEl.className = "stat-value " + (gain >= 0 ? "pos" : "neg");
+    }
+
+    function renderGrid(items) {
+      const grid = document.getElementById("cardsGrid");
+      if (!items.length) {
+        grid.innerHTML = `<p style="color:var(--muted)">Nessun elemento corrisponde ai filtri selezionati.</p>`;
+        return;
+      }
+
+      grid.innerHTML = items.map(item => {
+        const gainClass = item.guadagno >= 0 ? "gain-pos" : "gain-neg";
+        const imgHtml = item.foto
+          ? `<img src="${escapeAttr(item.foto)}" alt="${escapeAttr(item.modello)}" loading="lazy" onerror="this.parentElement.innerHTML='<div class=\\'no-img\\'>Foto non disponibile</div>'" />`
+          : `<div class="no-img">Nessuna foto</div>`;
+
+        return `
+          <article class="card">
+            <div class="thumb-wrap" data-action="view" data-id="${escapeAttr(item.id)}">
+              ${imgHtml}
+            </div>
+            <div class="card-body">
+              <div>
+                <div class="card-title">${escapeHtml(item.modello)}</div>
+                <div class="card-date">${escapeHtml(item.data || "Data non indicata")}</div>
+              </div>
+              <div class="prices">
+                <span class="lbl">Pagato:</span><strong>${formatEur(item.pagato)}</strong>
+                <span class="lbl">Spese:</span><strong>${formatEur(item.spese)}</strong>
+                <span class="lbl">Venduto:</span><strong>${formatEur(item.venduto)}</strong>
+                <span class="lbl">Guadagno:</span><strong class="${gainClass}">${formatEur(item.guadagno)}</strong>
+              </div>
+              <div class="card-actions">
+                <button data-action="view" data-id="${escapeAttr(item.id)}">Dettagli</button>
+                <button data-action="edit" data-id="${escapeAttr(item.id)}">Modifica</button>
+              </div>
+            </div>
+          </article>
+        `;
+      }).join("");
+    }
+
+    function renderAll() {
+      const filtered = getFilteredItems();
+      renderStats(filtered);
+      renderGrid(filtered);
+    }
+
+    function openModal(title, html) {
+      document.getElementById("modalTitle").textContent = title;
+      document.getElementById("modalContent").innerHTML = html;
+      document.getElementById("modalBackdrop").classList.add("open");
+    }
+
+    function closeModal() {
+      document.getElementById("modalBackdrop").classList.remove("open");
+    }
+
+    function viewItem(id) {
+      const item = allItems.find(x => x.id === id);
+      if (!item) return;
+      const imgBlock = item.foto
+        ? `<img class="full-photo" src="${escapeAttr(item.foto)}" alt="${escapeAttr(item.modello)}" />`
+        : `<p style="color:var(--muted);margin-bottom:12px">Nessuna foto disponibile.</p>`;
+
+      openModal(item.modello, `
+        ${imgBlock}
+        <div class="prices">
+          <span class="lbl">Data:</span><strong>${escapeHtml(item.data || "-")}</strong>
+          <span class="lbl">Pagato:</span><strong>${formatEur(item.pagato)}</strong>
+          <span class="lbl">Spese sostenute:</span><strong>${formatEur(item.spese)}</strong>
+          <span class="lbl">Venduto:</span><strong>${formatEur(item.venduto)}</strong>
+          <span class="lbl">Guadagno netto:</span><strong class="${item.guadagno >= 0 ? "gain-pos" : "gain-neg"}">${formatEur(item.guadagno)}</strong>
+        </div>
+        <div class="modal-footer">
+          <button id="modalEditBtn">Modifica scheda</button>
+          <button class="primary" id="modalOkBtn">Chiudi</button>
+        </div>
+      `);
+
+      document.getElementById("modalEditBtn").onclick = () => {
+        closeModal();
+        editItem(id);
+      };
+      document.getElementById("modalOkBtn").onclick = closeModal;
+    }
+
+    function editItem(id = null) {
+      const existing = id ? allItems.find(x => x.id === id) : null;
+      const isEdit = Boolean(existing);
+      const val = existing || {
+        id: "",
+        modello: "",
+        foto: "",
+        data: new Date().toLocaleDateString("it-GB").replaceAll("/", "-"),
+        pagato: 0,
+        spese: 0,
+        venduto: 0,
+        guadagno: 0
+      };
+
+      openModal(isEdit ? "Modifica scheda" : "Nuova scheda", `
+        <form id="itemForm" class="form-grid">
+          <div class="field" style="grid-column: 1 / -1">
+            <label for="fModello">Modello</label>
+            <input type="text" id="fModello" required value="${escapeAttr(val.modello)}" />
+          </div>
+          <div class="field">
+            <label for="fData">Data (GG-MM-AAAA)</label>
+            <input type="text" id="fData" value="${escapeAttr(val.data)}" />
+          </div>
+          <div class="field">
+            <label for="fPagato">Pagato (€)</label>
+            <input type="number" step="0.01" id="fPagato" value="${val.pagato}" />
+          </div>
+          <div class="field">
+            <label for="fSpese">Spese sostenute (€)</label>
+            <input type="number" step="0.01" id="fSpese" value="${val.spese}" />
+          </div>
+          <div class="field">
+            <label for="fVenduto">Venduto (€)</label>
+            <input type="number" step="0.01" id="fVenduto" value="${val.venduto}" />
+          </div>
+          <div class="field">
+            <label for="fGuadagno">Guadagno (€) — auto se vuoto</label>
+            <input type="number" step="0.01" id="fGuadagno" value="${val.guadagno}" />
+          </div>
+          <div class="field" style="grid-column: 1 / -1">
+            <label for="fFoto">URL Foto</label>
+            <input type="url" id="fFoto" placeholder="https://..." value="${escapeAttr(val.foto)}" />
+          </div>
+          <div class="field" style="grid-column: 1 / -1">
+            <label for="fFile">Oppure seleziona immagine locale (anteprima rapida)</label>
+            <input type="file" id="fFile" accept="image/*" />
+          </div>
+        </form>
+        <div class="modal-footer">
+          <button type="button" id="cancelFormBtn">Annulla</button>
+          <button type="button" class="primary" id="submitFormBtn">Salva</button>
+        </div>
+      `);
+
+      const pEl = document.getElementById("fPagato");
+      const sEl = document.getElementById("fSpese");
+      const vEl = document.getElementById("fVenduto");
+      const gEl = document.getElementById("fGuadagno");
+
+      function recalcGain() {
+        const calc = parseNum(vEl.value) - parseNum(pEl.value) - parseNum(sEl.value);
+        gEl.value = Number.isInteger(calc) ? calc : calc.toFixed(2);
+      }
+      pEl.addEventListener("input", recalcGain);
+      sEl.addEventListener("input", recalcGain);
+      vEl.addEventListener("input", recalcGain);
+
+      document.getElementById("fFile").addEventListener("change", (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+          document.getElementById("fFoto").value = reader.result;
+        };
+        reader.readAsDataURL(file);
+      });
+
+      document.getElementById("cancelFormBtn").onclick = closeModal;
+      document.getElementById("submitFormBtn").onclick = async () => {
+        const updated = {
+          id: val.id,
+          modello: document.getElementById("fModello").value.trim(),
+          data: document.getElementById("fData").value.trim(),
+          pagato: parseNum(pEl.value),
+          spese: parseNum(sEl.value),
+          venduto: parseNum(vEl.value),
+          guadagno: gEl.value !== "" ? parseNum(gEl.value) : (parseNum(vEl.value) - parseNum(pEl.value) - parseNum(sEl.value)),
+          foto: document.getElementById("fFoto").value.trim()
+        };
+        if (!updated.modello) {
+          alert("Inserisci il modello.");
+          return;
+        }
+        try {
+          await saveRecordToQuintaDB(updated, isEdit);
+          closeModal();
+        } catch (err) {
+          alert("Errore durante il salvataggio: " + err.message);
+        }
+      };
+    }
+
+    function escapeHtml(str) {
+      return String(str ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;");
+    }
+
+    function escapeAttr(str) {
+      return escapeHtml(str).replaceAll("'", "&#39;");
+    }
+
+    // Eventi UI
+    document.getElementById("btnToggleConfig").onclick = () => {
+      populateConfigUI();
+      document.getElementById("configPanel").classList.toggle("open");
+    };
+    document.getElementById("btnSaveConfig").onclick = () => {
+      saveConfigToUI();
+      fetchFromQuintaDB();
+    };
+    document.getElementById("btnSync").onclick = fetchFromQuintaDB;
+    document.getElementById("btnDemo").onclick = () => {
+      allItems = [...DEMO_DATA];
+      updateYearFilter();
+      renderAll();
+      setStatus("Caricati dati di esempio (estratto dal tuo foglio).", "ok");
+    };
+    document.getElementById("btnOpenNew").onclick = () => editItem(null);
+    document.getElementById("btnCloseModal").onclick = closeModal;
+    document.getElementById("modalBackdrop").onclick = (e) => {
+      if (e.target.id === "modalBackdrop") closeModal();
+    };
+
+    document.getElementById("cardsGrid").addEventListener("click", (e) => {
+      const btn = e.target.closest("[data-action]");
+      if (!btn) return;
+      const id = btn.getAttribute("data-id");
+      const action = btn.getAttribute("data-action");
+      if (action === "view") viewItem(id);
+      if (action === "edit") editItem(id);
+    });
+
+    ["searchInput", "categoryFilter", "yearFilter", "sortSelect"].forEach(id => {
+      document.getElementById(id).addEventListener("input", renderAll);
+      document.getElementById(id).addEventListener("change", renderAll);
+    });
+
+    // Avvio iniziale
+    populateConfigUI();
+    if (config.apiKey && config.formId) {
+      fetchFromQuintaDB();
+    } else {
+      allItems = [...DEMO_DATA];
+      updateYearFilter();
+      renderAll();
+      setStatus("Anteprima attiva con dati di esempio. Apri 'Configurazione' per collegare QuintaDB.");
+    }
+  </script>
+</body>
+</html>
