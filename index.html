@@ -84,6 +84,14 @@
       object-fit: cover;
       background: #000;
     }
+    img.card-img {
+      cursor: zoom-in;
+      transition: transform 0.2s ease, opacity 0.2s ease;
+    }
+    img.card-img:hover {
+      opacity: 0.92;
+      transform: scale(1.02);
+    }
     .card-body {
       padding: 15px;
       flex: 1;
@@ -95,6 +103,61 @@
     .card-details { font-size: 0.9em; color: var(--text-muted); line-height: 1.5; }
     .status { margin-top: 10px; margin-bottom: 15px; font-size: 0.85em; color: var(--accent); }
     .error { color: #ff5252; }
+
+    /* Modale ingrandimento foto */
+    .lightbox {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.88);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .lightbox.open {
+      display: flex;
+    }
+    .lightbox-content {
+      position: relative;
+      max-width: 92vw;
+      max-height: 90vh;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+    .lightbox-img {
+      max-width: 100%;
+      max-height: 76vh;
+      object-fit: contain;
+      border-radius: 6px;
+      background: #000;
+    }
+    .lightbox-caption {
+      font-size: 0.95em;
+      color: var(--text);
+      text-align: center;
+      word-break: break-word;
+    }
+    .lightbox-close {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      width: 36px;
+      height: 36px;
+      padding: 0;
+      border-radius: 50%;
+      background: rgba(0, 0, 0, 0.75);
+      border: 1px solid var(--border);
+      color: #fff;
+      font-size: 1.2em;
+      line-height: 1;
+    }
   </style>
 </head>
 <body>
@@ -118,6 +181,14 @@
   <div id="statusMessage" class="status">Inizializzazione...</div>
 
   <div class="grid" id="recordsGrid"></div>
+
+  <div id="lightbox" class="lightbox" onclick="handleLightboxBackdrop(event)">
+    <div class="lightbox-content">
+      <button class="lightbox-close" onclick="closeLightbox()" title="Chiudi">&times;</button>
+      <img id="lightboxImg" class="lightbox-img" src="" alt="">
+      <div id="lightboxCaption" class="lightbox-caption"></div>
+    </div>
+  </div>
 
   <script>
     const CONFIG = {
@@ -202,6 +273,37 @@
       }
     }
 
+    function openLightboxFromImg(imgEl) {
+      if (!imgEl || !imgEl.currentSrc) return;
+      const lightbox = document.getElementById("lightbox");
+      const lbImg = document.getElementById("lightboxImg");
+      const lbCaption = document.getElementById("lightboxCaption");
+
+      lbImg.src = imgEl.currentSrc;
+      lbImg.alt = imgEl.alt || "";
+      lbCaption.textContent = imgEl.dataset.caption || imgEl.alt || "";
+      lightbox.classList.add("open");
+    }
+
+    function closeLightbox() {
+      const lightbox = document.getElementById("lightbox");
+      const lbImg = document.getElementById("lightboxImg");
+      lightbox.classList.remove("open");
+      lbImg.src = "";
+    }
+
+    function handleLightboxBackdrop(event) {
+      if (event.target.id === "lightbox") {
+        closeLightbox();
+      }
+    }
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        closeLightbox();
+      }
+    });
+
     function renderGrid(records) {
       const grid = document.getElementById("recordsGrid");
       grid.innerHTML = "";
@@ -217,12 +319,16 @@
         const card = document.createElement("div");
         card.className = "card";
 
+        const captionText = `${r.modello}${r.data && r.data !== "-" ? " — " + r.data : ""}`;
+
         const imgTag = r.foto_quinta
           ? `<img
                src="${r.foto_quinta}"
                data-local="${r.foto_locale}"
+               data-caption="${captionText.replace(/"/g, "&quot;")}"
                class="card-img"
-               alt="${r.modello}"
+               alt="${r.modello.replace(/"/g, "&quot;")}"
+               onclick="openLightboxFromImg(this)"
                onerror="if(!this.dataset.triedLocal && this.dataset.local){ this.dataset.triedLocal='1'; this.src=this.dataset.local; } else { this.replaceWith(Object.assign(document.createElement('div'), { className:'card-img', style:'display:flex;align-items:center;justify-content:center;color:#777;font-size:0.8em;padding:10px;text-align:center;', textContent:'Foto non caricata: ' + ${JSON.stringify(r.foto_nome || '')} })); }"
              >`
           : `<div class="card-img" style="display:flex;align-items:center;justify-content:center;color:#555;">Nessuna Foto</div>`;
