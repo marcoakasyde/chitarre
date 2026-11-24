@@ -651,15 +651,18 @@
       };
     }
 
-    function buildEndpoint() {
-      const rawId = config.formId.trim();
-      if (!rawId) return null;
-      const baseUrl = rawId.startsWith("http")
-        ? rawId
-        : `https://quintadb.com/api/v1/forms/${encodeURIComponent(rawId)}/records.json`;
-      const sep = baseUrl.includes("?") ? "&" : "?";
-      return `${baseUrl}${sep}rest_api_key=${encodeURIComponent(config.apiKey.trim())}`;
-    }
+ function buildEndpoint() {
+  const rawId = config.formId.trim();
+  if (!rawId) return null;
+  const baseUrl = rawId.startsWith("http")
+    ? rawId
+    : `https://quintadb.com/api/v1/apps/dcGmkqWQ5cTQ_cUmk4WPDM/entities/${encodeURIComponent(rawId)}/records.json`;
+  const sep = baseUrl.includes("?") ? "&" : "?";
+  const finalUrl = `${baseUrl}${sep}rest_api_key=${encodeURIComponent(config.apiKey.trim())}`;
+  
+  // Aggiunge il proxy CORS per evitare l'errore "Failed to fetch" dal browser
+  return `https://corsproxy.io/?${encodeURIComponent(finalUrl)}`;
+}
 
     async function fetchFromQuintaDB() {
       const endpoint = buildEndpoint();
