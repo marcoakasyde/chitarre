@@ -4,6 +4,16 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Catalogo Chitarre - QuintaDB</title>
+
+  <!-- PWA Meta Tags & Manifest -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#00adb5">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Chitarre">
+  <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2907/2907253.png">
+
   <style>
     :root {
       --bg-color: #121212;
@@ -130,6 +140,27 @@
     .card-details { font-size: 0.9em; color: var(--text-muted); line-height: 1.5; }
     .status { margin-top: 10px; margin-bottom: 15px; font-size: 0.85em; color: var(--accent); }
     .error { color: #ff5252; }
+
+    /* Banner per installazione app */
+    .pwa-banner {
+      display: none;
+      background: #00adb5;
+      color: #fff;
+      padding: 12px 16px;
+      border-radius: 8px;
+      margin-bottom: 15px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .pwa-banner button {
+      background: #fff;
+      color: #00adb5;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 4px;
+      font-weight: bold;
+    }
 
     /* Modale ingrandimento foto */
     .lightbox {
@@ -260,6 +291,12 @@
     </div>
   </header>
 
+  <!-- Banner Installazione PWA -->
+  <div id="pwaBanner" class="pwa-banner">
+    <span>Vuoi installare l'app Catalogo Chitarre sullo schermo del tuo telefono?</span>
+    <button id="installAppBtn">Installa</button>
+  </div>
+
   <div class="stats-bar">
     <div class="stat-item"><div class="stat-label">Totale Strumenti</div><div class="stat-value" id="statCount">0</div></div>
     <div class="stat-item"><div class="stat-label">Totale Costi</div><div class="stat-value" id="statCost">€0</div></div>
@@ -360,6 +397,33 @@
     };
 
     let allRecords = [];
+    let deferredPrompt;
+
+    // Registrazione Service Worker per PWA
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js').catch(err => console.log('SW Registration Failed:', err));
+      });
+    }
+
+    // Gestione prompt di installazione Android
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      const banner = document.getElementById('pwaBanner');
+      if (banner) banner.style.display = 'flex';
+    });
+
+    document.getElementById('installAppBtn')?.addEventListener('click', async () => {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === 'accepted') {
+          document.getElementById('pwaBanner').style.display = 'none';
+        }
+        deferredPrompt = null;
+      }
+    });
 
     function generateQuintaId() {
       const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-";
