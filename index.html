@@ -12,7 +12,7 @@
       --text: #eeeeee;
       --text-muted: #aaaaaa;
       --border: #333333;
-      --danger: #d9534f;
+      --danger: #c93b3b;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -62,8 +62,13 @@
       background-color: #2f3542;
       border: 1px solid var(--border);
     }
-    .btn-danger {
-      background-color: var(--danger);
+    .btn-danger-ghost {
+      background-color: transparent;
+      color: #ff6b6b;
+      border: 1px solid rgba(255, 107, 107, 0.35);
+    }
+    .btn-danger-ghost:hover {
+      background-color: rgba(201, 59, 59, 0.16);
     }
     .card-actions {
       display: flex;
@@ -231,9 +236,16 @@
     }
     .form-actions {
       display: flex;
-      justify-content: flex-end;
+      justify-content: space-between;
+      align-items: center;
       gap: 10px;
       margin-top: 16px;
+      flex-wrap: wrap;
+    }
+    .form-actions-right {
+      display: flex;
+      gap: 10px;
+      margin-left: auto;
     }
   </style>
 </head>
@@ -311,8 +323,11 @@
         </div>
 
         <div class="form-actions">
-          <button type="button" class="btn-secondary" onclick="closeRecordModal()">Annulla</button>
-          <button type="submit" id="saveRecordBtn">Salva su QuintaDB</button>
+          <button type="button" id="deleteInModalBtn" class="btn-danger-ghost btn-small" style="display:none;" onclick="deleteCurrentRecord()">Elimina record</button>
+          <div class="form-actions-right">
+            <button type="button" class="btn-secondary" onclick="closeRecordModal()">Annulla</button>
+            <button type="submit" id="saveRecordBtn">Salva su QuintaDB</button>
+          </div>
         </div>
       </form>
     </div>
@@ -467,6 +482,7 @@
       const title = document.getElementById("formModalTitle");
       const fileInput = document.getElementById("recFotoFile");
       const hintEl = document.getElementById("currentFotoHint");
+      const deleteBtn = document.getElementById("deleteInModalBtn");
       fileInput.value = "";
 
       if (recordId) {
@@ -482,6 +498,7 @@
         document.getElementById("recVendita").value = rec.prezzo_vendita;
         document.getElementById("recGuadagno").value = rec.guadagno;
         hintEl.textContent = rec.foto_nome ? `Foto attuale: ${rec.foto_nome}` : "Nessuna foto associata";
+        deleteBtn.style.display = "inline-block";
       } else {
         title.innerText = "Nuovo Record su QuintaDB";
         document.getElementById("recId").value = "";
@@ -493,6 +510,7 @@
         document.getElementById("recVendita").value = 0;
         document.getElementById("recGuadagno").value = 0;
         hintEl.textContent = "Seleziona un'immagine per caricarla su QuintaDB";
+        deleteBtn.style.display = "none";
       }
 
       modal.classList.add("open");
@@ -594,23 +612,29 @@
       }
     }
 
-    async function deleteRecord(recordId, modello) {
+    async function deleteCurrentRecord() {
+      const recordId = document.getElementById("recId").value.trim();
+      const modello = document.getElementById("recModello").value.trim();
       if (!recordId) return;
+
       const confirmed = confirm(`Vuoi davvero eliminare "${modello || "questo record"}" da QuintaDB?`);
       if (!confirmed) return;
 
       const statusEl = document.getElementById("statusMessage");
+      const deleteBtn = document.getElementById("deleteInModalBtn");
+      deleteBtn.disabled = true;
       statusEl.className = "status";
       statusEl.innerText = "Eliminazione record da QuintaDB...";
 
-      const deleteUrl = `https://quintadb.com/apps/${encodeURIComponent(CONFIG.appId)}/dtypes/${encodeURIComponent(recordId)}.json`;
+      const deleteUrlWithKey = `https://quintadb.com/apps/${encodeURIComponent(CONFIG.appId)}/dtypes/${encodeURIComponent(recordId)}.json?rest_api_key=${encodeURIComponent(CONFIG.apiKey)}`;
 
       try {
-        await fetchWithFallback(deleteUrl, {
+        await fetchWithFallback(deleteUrlWithKey, {
           method: "DELETE",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ rest_api_key: CONFIG.apiKey })
         });
+        closeRecordModal();
         await loadData();
         statusEl.className = "status";
         statusEl.innerText = "Record eliminato da QuintaDB!";
@@ -618,6 +642,8 @@
         console.error("Errore eliminazione QuintaDB:", err);
         statusEl.className = "status error";
         statusEl.innerText = `Eliminazione non riuscita (${err.message}). Verifica permessi DELETE della chiave API o del proxy.`;
+      } finally {
+        deleteBtn.disabled = false;
       }
     }
 
@@ -670,7 +696,6 @@
 
         const captionText = `${r.modello}${r.data && r.data !== "-" ? " — " + r.data : ""}`;
         const safeModello = r.modello.replace(/"/g, "&quot;");
-        const safeModelloJs = JSON.stringify(r.modello || "");
 
         const imgTag = r.foto_quinta
           ? `<img
@@ -698,8 +723,7 @@
               </div>
             </div>
             <div class="card-actions">
-              <button type="button" class="btn-secondary btn-small" onclick="openRecordModal('${r.id}')">Modifica</button>
-              <button type="button" class="btn-danger btn-small" onclick="deleteRecord('${r.id}', ${safeModelloJs})">Elimina</button>
+              <button type="button" class="btn-secondary btn-small" data-id="${r.id}" onclick="openRecordModal(this.dataset.id)">Modifica</button>
             </div>
           </div>
         `;
