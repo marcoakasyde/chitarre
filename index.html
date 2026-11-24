@@ -84,10 +84,16 @@
       object-fit: cover;
       background: #000;
     }
-    .card-body { padding: 15px; flex: 1; display: flex; flex-direction: column; justify-content: space-between; }
+    .card-body {
+      padding: 15px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
     .card-title { font-size: 1.1em; font-weight: bold; margin-bottom: 10px; }
     .card-details { font-size: 0.9em; color: var(--text-muted); line-height: 1.5; }
-    .status { margin-top: 10px; font-size: 0.85em; color: var(--accent); }
+    .status { margin-top: 10px; margin-bottom: 15px; font-size: 0.85em; color: var(--accent); }
     .error { color: #ff5252; }
   </style>
 </head>
@@ -114,23 +120,22 @@
   <div class="grid" id="recordsGrid"></div>
 
   <script>
-    // Configurazione fissa QuintaDB
     const CONFIG = {
       appId: "dcGmkqWQ5cTQ_cUmk4WPDM",
       entityId: "bvfSocbxXcLOkOtNj0rmow",
-      apiKey: "a4WQ_dNCnmWQfUWPpcTCol"
+      apiKey: "a4WQ_dNCnmWQfUWPpcTCol",
+      photoFieldId: "cfWRGLWRjcMioaCSknbCov"
     };
 
     let allRecords = [];
 
-    // Mappatura esplicita dei campi dal JSON di QuintaDB
     function mapQuintaRecord(rec) {
       const v = rec.values || {};
-      const foto = v.cfWRGLWRjcMioaCSknbCov || "";
+      const foto = v[CONFIG.photoFieldId] || "";
       const costo = Number(v.aNW7xcKWTdKOzIW4_cRhLd) || 0;
       const spese = Number(v.c8F8owWR1lW5ZcG3HqWO1w) || 0;
       const prezzoVendita = Number(v.c9waTammngW59eWOldL8o6) || 0;
-      
+
       let guadagno = 0;
       if (v.aLmSkLiSjhziome8ordmkO !== undefined && v.aLmSkLiSjhziome8ordmkO !== "") {
         guadagno = Number(v.aLmSkLiSjhziome8ordmkO);
@@ -146,7 +151,13 @@
         spese,
         prezzo_vendita: prezzoVendita,
         guadagno,
-        foto_url: foto ? `https://quintadb.com/images/data/cfWRGLWRjcMioaCSknbCov/${rec.id}/${encodeURIComponent(foto)}` : ""
+        foto_nome: foto,
+        foto_quinta: foto
+          ? `https://quintadb.com/images/data4/${CONFIG.photoFieldId}/${rec.id}/${encodeURIComponent(foto)}`
+          : "",
+        foto_locale: foto
+          ? `images/${encodeURIComponent(foto)}`
+          : ""
       };
     }
 
@@ -156,7 +167,7 @@
       statusEl.innerText = "Caricamento dati da QuintaDB in corso...";
 
       const targetUrl = `https://quintadb.com/apps/${CONFIG.appId}/dtypes/entity/${CONFIG.entityId}.json?rest_api_key=${CONFIG.apiKey}&page=1`;
-      
+
       const endpoints = [
         targetUrl,
         `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`,
@@ -205,9 +216,15 @@
 
         const card = document.createElement("div");
         card.className = "card";
-        
-        const imgTag = r.foto_url 
-          ? `<img src="${r.foto_url}" class="card-img" alt="${r.modello}" onerror="this.style.display='none'">` 
+
+        const imgTag = r.foto_quinta
+          ? `<img
+               src="${r.foto_quinta}"
+               data-local="${r.foto_locale}"
+               class="card-img"
+               alt="${r.modello}"
+               onerror="if(!this.dataset.triedLocal && this.dataset.local){ this.dataset.triedLocal='1'; this.src=this.dataset.local; } else { this.replaceWith(Object.assign(document.createElement('div'), { className:'card-img', style:'display:flex;align-items:center;justify-content:center;color:#777;font-size:0.8em;padding:10px;text-align:center;', textContent:'Foto non caricata: ' + ${JSON.stringify(r.foto_nome || '')} })); }"
+             >`
           : `<div class="card-img" style="display:flex;align-items:center;justify-content:center;color:#555;">Nessuna Foto</div>`;
 
         card.innerHTML = `
@@ -239,7 +256,6 @@
       renderGrid(filtered);
     }
 
-    // Caricamento automatico all'apertura della pagina
     window.onload = loadData;
   </script>
 </body>
