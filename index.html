@@ -12,6 +12,7 @@
       --text: #eeeeee;
       --text-muted: #aaaaaa;
       --border: #333333;
+      --danger: #d9534f;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -36,7 +37,7 @@
       max-width: 720px;
       flex-wrap: wrap;
     }
-    input[type="text"], input[type="number"] {
+    input[type="text"], input[type="number"], input[type="file"] {
       padding: 10px;
       border-radius: 5px;
       border: 1px solid var(--border);
@@ -61,11 +62,18 @@
       background-color: #2f3542;
       border: 1px solid var(--border);
     }
+    .btn-danger {
+      background-color: var(--danger);
+    }
+    .card-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+      flex-wrap: wrap;
+    }
     .btn-small {
       padding: 6px 10px;
       font-size: 0.82em;
-      margin-top: 10px;
-      align-self: flex-start;
     }
     .stats-bar {
       display: flex;
@@ -190,6 +198,8 @@
       border: 1px solid var(--border);
       border-radius: 10px;
       padding: 20px;
+      max-height: 92vh;
+      overflow-y: auto;
     }
     .form-modal h2 {
       color: var(--accent);
@@ -207,6 +217,12 @@
     }
     .form-group input {
       width: 100%;
+    }
+    .hint {
+      display: block;
+      font-size: 0.78em;
+      color: var(--text-muted);
+      margin-top: 4px;
     }
     .form-row {
       display: grid;
@@ -250,7 +266,6 @@
       <h2 id="formModalTitle">Nuovo Record su QuintaDB</h2>
       <form id="recordForm" onsubmit="saveRecord(event)">
         <input type="hidden" id="recId">
-        <input type="hidden" id="recFoto">
 
         <div class="form-group">
           <label for="recModello">Modello</label>
@@ -282,6 +297,17 @@
             <label for="recGuadagno">Guadagno (€)</label>
             <input type="number" id="recGuadagno" step="any" value="0">
           </div>
+        </div>
+
+        <div class="form-group">
+          <label for="recFotoFile">Carica Foto (JPG / PNG / WEBP)</label>
+          <input type="file" id="recFotoFile" accept="image/*">
+          <span class="hint" id="currentFotoHint"></span>
+        </div>
+
+        <div class="form-group">
+          <label for="recFoto">Nome file foto su QuintaDB (opzionale)</label>
+          <input type="text" id="recFoto" placeholder="Lascia vuoto se carichi un file sopra">
         </div>
 
         <div class="form-actions">
@@ -319,6 +345,17 @@
     };
 
     let allRecords = [];
+
+    function generateQuintaId() {
+      const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-";
+      const arr = new Uint8Array(22);
+      crypto.getRandomValues(arr);
+      let out = "";
+      for (let i = 0; i < arr.length; i++) {
+        out += chars[arr[i] % chars.length];
+      }
+      return out;
+    }
 
     function todayFormatted() {
       const d = new Date();
@@ -372,7 +409,13 @@
         try {
           const res = await fetch(url, options);
           if (res.ok) {
-            return await res.json();
+            const text = await res.text();
+            if (!text) return {};
+            try {
+              return JSON.parse(text);
+            } catch (_) {
+              return { raw: text };
+            }
           }
           lastError = new Error(`HTTP ${res.status} (${url})`);
         } catch (err) {
@@ -380,6 +423,20 @@
         }
       }
       throw lastError || new Error("Richiesta fallita");
+    }
+
+    async function uploadFotoToQuinta(file, dtypeId) {
+      const uploadUrl = `https://quintadb.com/entities/${encodeURIComponent(CONFIG.appId)}/upload_file/${encodeURIComponent(CONFIG.photoFieldId)}.json?dtype_id=${encodeURIComponent(dtypeId)}`;
+      const formData = new FormData();
+      formData.append("rest_api_key", CONFIG.apiKey);
+      formData.append("app_id", CONFIG.appId);
+      formData.append("dtype_id", dtypeId);
+      formData.append("filedata", file, file.name);
+
+      return await fetchWithFallback(uploadUrl, {
+        method: "POST",
+        body: formData
+      });
     }
 
     async function loadData() {
@@ -408,6 +465,9 @@
     function openRecordModal(recordId = null) {
       const modal = document.getElementById("recordModal");
       const title = document.getElementById("formModalTitle");
+      const fileInput = document.getElementById("recFotoFile");
+      const hintEl = document.getElementById("currentFotoHint");
+      fileInput.value = "";
 
       if (recordId) {
         const rec = allRecords.find(r => r.id === recordId);
@@ -421,6 +481,7 @@
         document.getElementById("recSpese").value = rec.spese;
         document.getElementById("recVendita").value = rec.prezzo_vendita;
         document.getElementById("recGuadagno").value = rec.guadagno;
+        hintEl.textContent = rec.foto_nome ? `Foto attuale: ${rec.foto_nome}` : "Nessuna foto associata";
       } else {
         title.innerText = "Nuovo Record su QuintaDB";
         document.getElementById("recId").value = "";
@@ -431,6 +492,7 @@
         document.getElementById("recSpese").value = 0;
         document.getElementById("recVendita").value = 0;
         document.getElementById("recGuadagno").value = 0;
+        hintEl.textContent = "Seleziona un'immagine per caricarla su QuintaDB";
       }
 
       modal.classList.add("open");
@@ -459,54 +521,66 @@
       const saveBtn = document.getElementById("saveRecordBtn");
 
       const existingId = document.getElementById("recId").value.trim();
+      const targetRecordId = existingId || generateQuintaId();
       const modello = document.getElementById("recModello").value.trim();
       const dataVal = document.getElementById("recData").value.trim();
       const costo = Number(document.getElementById("recCosto").value) || 0;
       const spese = Number(document.getElementById("recSpese").value) || 0;
       const vendita = Number(document.getElementById("recVendita").value) || 0;
       const guadagno = Number(document.getElementById("recGuadagno").value) || 0;
-      const foto = document.getElementById("recFoto").value.trim();
-
-      const valuesPayload = {
-        [CONFIG.fields.modello]: modello,
-        [CONFIG.fields.data]: dataVal,
-        [CONFIG.fields.costo]: String(costo),
-        [CONFIG.fields.spese]: String(spese),
-        [CONFIG.fields.vendita]: String(vendita),
-        [CONFIG.fields.guadagno]: guadagno
-      };
-
-      if (foto) {
-        valuesPayload[CONFIG.fields.foto] = foto;
-      }
-
-      let endpoint = "";
-      let method = "POST";
-
-      if (existingId) {
-        method = "PUT";
-        endpoint = `https://quintadb.com/apps/${CONFIG.appId}/dtypes/${encodeURIComponent(existingId)}.json`;
-      } else {
-        method = "POST";
-        valuesPayload.entity_id = CONFIG.entityId;
-        endpoint = `https://quintadb.com/apps/${CONFIG.appId}/dtypes.json`;
-      }
-
-      const body = JSON.stringify({
-        rest_api_key: CONFIG.apiKey,
-        values: valuesPayload
-      });
+      const fileInput = document.getElementById("recFotoFile");
+      const selectedFile = fileInput && fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
+      let foto = document.getElementById("recFoto").value.trim();
 
       saveBtn.disabled = true;
       statusEl.className = "status";
-      statusEl.innerText = existingId ? "Aggiornamento record su QuintaDB..." : "Inserimento nuovo record su QuintaDB...";
 
       try {
+        if (selectedFile) {
+          statusEl.innerText = "Caricamento immagine su QuintaDB...";
+          const uploadRes = await uploadFotoToQuinta(selectedFile, targetRecordId);
+          foto = (uploadRes && (uploadRes.file_name || uploadRes.filename || uploadRes.name)) || selectedFile.name;
+        }
+
+        const valuesPayload = {
+          [CONFIG.fields.modello]: modello,
+          [CONFIG.fields.data]: dataVal,
+          [CONFIG.fields.costo]: String(costo),
+          [CONFIG.fields.spese]: String(spese),
+          [CONFIG.fields.vendita]: String(vendita),
+          [CONFIG.fields.guadagno]: guadagno
+        };
+
+        if (foto) {
+          valuesPayload[CONFIG.fields.foto] = foto;
+        }
+
+        let endpoint = "";
+        let method = "POST";
+
+        if (existingId) {
+          method = "PUT";
+          endpoint = `https://quintadb.com/apps/${CONFIG.appId}/dtypes/${encodeURIComponent(existingId)}.json`;
+        } else {
+          method = "POST";
+          valuesPayload.entity_id = CONFIG.entityId;
+          valuesPayload.id = targetRecordId;
+          endpoint = `https://quintadb.com/apps/${CONFIG.appId}/dtypes.json`;
+        }
+
+        const body = JSON.stringify({
+          rest_api_key: CONFIG.apiKey,
+          values: valuesPayload
+        });
+
+        statusEl.innerText = existingId ? "Aggiornamento record su QuintaDB..." : "Inserimento nuovo record su QuintaDB...";
+
         await fetchWithFallback(endpoint, {
           method,
           headers: { "Content-Type": "application/json" },
           body
         });
+
         closeRecordModal();
         await loadData();
         statusEl.className = "status";
@@ -514,9 +588,36 @@
       } catch (err) {
         console.error("Errore salvataggio QuintaDB:", err);
         statusEl.className = "status error";
-        statusEl.innerText = `Salvataggio non riuscito (${err.message}). Verifica i permessi di scrittura della chiave o il proxy sulle richieste ${method}.`;
+        statusEl.innerText = `Salvataggio non riuscito (${err.message}). Verifica permessi API o supporto del proxy per upload/scrittura.`;
       } finally {
         saveBtn.disabled = false;
+      }
+    }
+
+    async function deleteRecord(recordId, modello) {
+      if (!recordId) return;
+      const confirmed = confirm(`Vuoi davvero eliminare "${modello || "questo record"}" da QuintaDB?`);
+      if (!confirmed) return;
+
+      const statusEl = document.getElementById("statusMessage");
+      statusEl.className = "status";
+      statusEl.innerText = "Eliminazione record da QuintaDB...";
+
+      const deleteUrl = `https://quintadb.com/apps/${encodeURIComponent(CONFIG.appId)}/dtypes/${encodeURIComponent(recordId)}.json`;
+
+      try {
+        await fetchWithFallback(deleteUrl, {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ rest_api_key: CONFIG.apiKey })
+        });
+        await loadData();
+        statusEl.className = "status";
+        statusEl.innerText = "Record eliminato da QuintaDB!";
+      } catch (err) {
+        console.error("Errore eliminazione QuintaDB:", err);
+        statusEl.className = "status error";
+        statusEl.innerText = `Eliminazione non riuscita (${err.message}). Verifica permessi DELETE della chiave API o del proxy.`;
       }
     }
 
@@ -568,6 +669,8 @@
         card.className = "card";
 
         const captionText = `${r.modello}${r.data && r.data !== "-" ? " — " + r.data : ""}`;
+        const safeModello = r.modello.replace(/"/g, "&quot;");
+        const safeModelloJs = JSON.stringify(r.modello || "");
 
         const imgTag = r.foto_quinta
           ? `<img
@@ -575,7 +678,7 @@
                data-local="${r.foto_locale}"
                data-caption="${captionText.replace(/"/g, "&quot;")}"
                class="card-img"
-               alt="${r.modello.replace(/"/g, "&quot;")}"
+               alt="${safeModello}"
                onclick="openLightboxFromImg(this)"
                onerror="if(!this.dataset.triedLocal && this.dataset.local){ this.dataset.triedLocal='1'; this.src=this.dataset.local; } else { this.replaceWith(Object.assign(document.createElement('div'), { className:'card-img', style:'display:flex;align-items:center;justify-content:center;color:#777;font-size:0.8em;padding:10px;text-align:center;', textContent:'Foto non caricata: ' + ${JSON.stringify(r.foto_nome || '')} })); }"
              >`
@@ -584,15 +687,20 @@
         card.innerHTML = `
           ${imgTag}
           <div class="card-body">
-            <div class="card-title">${r.modello}</div>
-            <div class="card-details">
-              <strong>Data:</strong> ${r.data}<br>
-              <strong>Costo:</strong> €${r.costo}<br>
-              <strong>Spese:</strong> €${r.spese}<br>
-              <strong>Vendita:</strong> €${r.prezzo_vendita}<br>
-              <strong style="color:${r.guadagno >= 0 ? '#4caf50' : '#ff5252'}">Guadagno:</strong> €${r.guadagno}
+            <div>
+              <div class="card-title">${r.modello}</div>
+              <div class="card-details">
+                <strong>Data:</strong> ${r.data}<br>
+                <strong>Costo:</strong> €${r.costo}<br>
+                <strong>Spese:</strong> €${r.spese}<br>
+                <strong>Vendita:</strong> €${r.prezzo_vendita}<br>
+                <strong style="color:${r.guadagno >= 0 ? '#4caf50' : '#ff5252'}">Guadagno:</strong> €${r.guadagno}
+              </div>
             </div>
-            <button type="button" class="btn-secondary btn-small" onclick="openRecordModal('${r.id}')">Modifica</button>
+            <div class="card-actions">
+              <button type="button" class="btn-secondary btn-small" onclick="openRecordModal('${r.id}')">Modifica</button>
+              <button type="button" class="btn-danger btn-small" onclick="deleteRecord('${r.id}', ${safeModelloJs})">Elimina</button>
+            </div>
           </div>
         `;
         grid.appendChild(card);
