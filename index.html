@@ -117,11 +117,12 @@
       flex-direction: column;
     }
     .card-img {
-      width: 100%;
-      height: 200px;
-      object-fit: cover;
-      background: #000;
-    }
+  width: 100%;
+  height: 200px;
+  object-fit: cover;
+  object-position: center 80%; /* Anziché il 50% di default, scende verso l'80% per mostrare la parte bassa */
+  background: #000;
+}
     img.card-img {
       cursor: zoom-in;
       transition: transform 0.2s ease, opacity 0.2s ease;
